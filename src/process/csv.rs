@@ -15,34 +15,6 @@ impl CsvRecord {
     fn new(headers: Option<StringRecord>, records: Vec<StringRecord>) -> Self {
         Self { headers, records }
     }
-
-    fn to_raw(&self) -> String {
-        let mut ret = vec![];
-        if let Some(headers) = &self.headers {
-            ret.push(headers.clone());
-        }
-        ret.extend(self.records.clone());
-        ret.iter()
-            .map(|record| record.iter().collect::<Vec<_>>().join(","))
-            .collect::<Vec<_>>()
-            .join("\n")
-    }
-
-    fn to_value(&self) -> Vec<Value> {
-        let mut ret = vec![];
-        if let Some(headers) = &self.headers {
-            for record in &self.records {
-                let record = headers.iter().zip(record.iter()).collect::<Value>();
-                ret.push(record);
-            }
-        } else {
-            for record in &self.records {
-                let record = record.iter().collect::<Value>();
-                ret.push(record);
-            }
-        }
-        ret
-    }
 }
 
 impl TryFrom<Reader<File>> for CsvRecord {
@@ -55,6 +27,38 @@ impl TryFrom<Reader<File>> for CsvRecord {
             headers: Some(headers),
             records,
         })
+    }
+}
+
+impl From<CsvRecord> for String {
+    fn from(csv_record: CsvRecord) -> Self {
+        let mut ret = vec![];
+        if let Some(headers) = csv_record.headers {
+            ret.push(headers.clone());
+        }
+        ret.extend(csv_record.records.clone());
+        ret.iter()
+            .map(|record| record.iter().collect::<Vec<_>>().join(","))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+}
+
+impl From<CsvRecord> for Vec<Value> {
+    fn from(csv_record: CsvRecord) -> Self {
+        let mut ret = vec![];
+        if let Some(headers) = csv_record.headers {
+            for record in csv_record.records {
+                let record = headers.iter().zip(record.iter()).collect::<Value>();
+                ret.push(record);
+            }
+        } else {
+            for record in csv_record.records {
+                let record = record.iter().collect::<Value>();
+                ret.push(record);
+            }
+        }
+        ret
     }
 }
 
@@ -85,10 +89,19 @@ fn read_csv(input: &str, delimiter: char, no_header: bool) -> anyhow::Result<Csv
 
 fn csv_convert(csv_record: CsvRecord, format: OutputFormat) -> anyhow::Result<String> {
     match format {
-        OutputFormat::Raw => Ok(csv_record.to_raw()),
-        OutputFormat::Json => Ok(serde_json::to_string_pretty(&csv_record.to_value())?),
-        OutputFormat::Yaml => Ok(serde_yaml::to_string(&csv_record.to_value())?),
-        OutputFormat::Toml => Ok(toml::to_string(&Toml::new(csv_record.to_value()))?),
+        OutputFormat::Raw => Ok(csv_record.into()),
+        OutputFormat::Json => {
+            let contents: Vec<Value> = csv_record.into();
+            Ok(serde_json::to_string_pretty(&contents)?)
+        }
+        OutputFormat::Yaml => {
+            let contents: Vec<Value> = csv_record.into();
+            Ok(serde_yaml::to_string(&contents)?)
+        }
+        OutputFormat::Toml => {
+            let contents = Toml::new(csv_record.into());
+            Ok(toml::to_string(&contents)?)
+        }
     }
 }
 
