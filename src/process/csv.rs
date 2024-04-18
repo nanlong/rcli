@@ -45,14 +45,16 @@ impl CsvRecord {
     }
 }
 
-impl From<Reader<File>> for CsvRecord {
-    fn from(mut rdr: Reader<File>) -> Self {
-        let headers = rdr.headers().unwrap().clone();
-        let records = rdr.records().collect::<Result<Vec<_>, _>>().unwrap();
-        Self {
+impl TryFrom<Reader<File>> for CsvRecord {
+    type Error = anyhow::Error;
+
+    fn try_from(mut rdr: Reader<File>) -> Result<Self, Self::Error> {
+        let headers = rdr.headers()?.clone();
+        let records = rdr.records().collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
             headers: Some(headers),
             records,
-        }
+        })
     }
 }
 
@@ -72,7 +74,7 @@ fn read_csv(input: &str, delimiter: char, no_header: bool) -> anyhow::Result<Csv
         .delimiter(delimiter as u8)
         .from_path(input)?;
 
-    let csv_record: CsvRecord = rdr.into();
+    let csv_record: CsvRecord = rdr.try_into()?;
 
     if !no_header {
         Ok(csv_record)
