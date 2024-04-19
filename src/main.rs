@@ -29,5 +29,19 @@ fn main() {
             let estimate = zxcvbn::zxcvbn(&password, &[]).unwrap();
             eprintln!("Estimated strength: {}", estimate.score());
         }
+        SubCommand::Base64(subcommand) => match subcommand {
+            Base64Subcommand::Encode(opts) => {
+                let mut reader = get_reader(&opts.input).unwrap();
+                let encoded =
+                    process_base64(&mut reader, &opts.format, Base64Action::Encode).unwrap();
+                println!("{}", encoded);
+            }
+            Base64Subcommand::Decode(opts) => {
+                let mut reader = get_reader(&opts.input).unwrap();
+                let decoded =
+                    process_base64(&mut reader, &opts.format, Base64Action::Decode).unwrap();
+                println!("{}", decoded);
+            }
+        },
     }
 }

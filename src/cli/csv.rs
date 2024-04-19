@@ -1,5 +1,5 @@
+use crate::utils::verify_input;
 use clap::Parser;
-use std::{path::Path, str::FromStr};
 
 #[derive(Debug, Parser, Clone)]
 pub enum OutputFormat {
@@ -23,7 +23,7 @@ pub struct CsvOpts {
     pub no_header: bool,
 }
 
-impl FromStr for OutputFormat {
+impl std::str::FromStr for OutputFormat {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -34,15 +34,5 @@ impl FromStr for OutputFormat {
             "toml" => Ok(OutputFormat::Toml),
             _ => Err(anyhow::anyhow!("Invalid CSV output format")),
         }
-    }
-}
-
-fn verify_input(s: &str) -> anyhow::Result<String> {
-    if Path::new(s).exists() && s.ends_with(".csv") {
-        Ok(s.to_string())
-    } else {
-        Err(anyhow::anyhow!(
-            "Invalid input file path, must be a CSV file"
-        ))
     }
 }

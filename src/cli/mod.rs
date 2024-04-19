@@ -1,6 +1,8 @@
+mod base64;
 mod csv;
 mod genpass;
 
+pub use base64::*;
 use clap::Parser;
 pub use csv::*;
 pub use genpass::*;
@@ -17,4 +19,6 @@ pub enum SubCommand {
     Csv(CsvOpts),
     #[command(name = "genpass", about = "Generate a random password")]
     Genpass(GenpassOpts),
+    #[command(subcommand, about = "Encode or decode base64")]
+    Base64(Base64Subcommand),
 }
