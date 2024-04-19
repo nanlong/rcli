@@ -15,5 +15,19 @@ fn main() {
             )
             .unwrap();
         }
+        SubCommand::Genpass(genpass_opts) => {
+            let password = process_genpass(
+                genpass_opts.length,
+                genpass_opts.no_upper,
+                genpass_opts.no_lower,
+                genpass_opts.no_num,
+                genpass_opts.no_symbol,
+            )
+            .unwrap();
+
+            println!("{}", password);
+            let estimate = zxcvbn::zxcvbn(&password, &[]).unwrap();
+            eprintln!("Estimated strength: {}", estimate.score());
+        }
     }
 }
