@@ -1,7 +1,8 @@
+use crate::output_contents;
 use csv::{Reader, ReaderBuilder, StringRecord};
 use serde::Serialize;
 use serde_json::Value;
-use std::fs::{self, File};
+use std::fs::File;
 
 use crate::OutputFormat;
 
@@ -102,14 +103,6 @@ fn csv_convert(csv_record: CsvRecord, format: OutputFormat) -> anyhow::Result<St
             let contents = Toml::new(csv_record.into());
             Ok(toml::to_string(&contents)?)
         }
-    }
-}
-
-fn output_contents(output: &str, contents: &str) {
-    if output != "-" {
-        fs::write(output, contents).unwrap();
-    } else {
-        println!("{}", contents);
     }
 }
 

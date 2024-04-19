@@ -43,5 +43,24 @@ fn main() {
                 println!("{}", decoded);
             }
         },
+        SubCommand::Text(subcommand) => match subcommand {
+            TextSubcommand::Sign(opts) => {
+                let mut reader = get_reader(&opts.input).unwrap();
+                let key = get_content(&opts.key).unwrap();
+                let signed = process_sign(&mut reader, &key, opts.format).unwrap();
+                println!("{}", signed);
+            }
+            TextSubcommand::Verify(opts) => {
+                let mut reader = get_reader(&opts.input).unwrap();
+                let key = get_content(&opts.key).unwrap();
+                let sig = get_content(&opts.sig).unwrap();
+                let verified = process_verify(&mut reader, &key, &sig, opts.format).unwrap();
+                println!("{}", verified);
+            }
+            TextSubcommand::Generate(opts) => {
+                let key = process_generate(opts.format);
+                output_contents(&opts.output, &key);
+            }
+        },
     }
 }
