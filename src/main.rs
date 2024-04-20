@@ -14,8 +14,7 @@ async fn main() -> Result<()> {
                 csv_opts.format,
                 csv_opts.delimiter,
                 csv_opts.no_header,
-            )
-            .unwrap();
+            )?;
         }
         SubCommand::Genpass(genpass_opts) => {
             let password = process_genpass(
@@ -24,39 +23,36 @@ async fn main() -> Result<()> {
                 genpass_opts.no_lower,
                 genpass_opts.no_num,
                 genpass_opts.no_symbol,
-            )
-            .unwrap();
+            )?;
 
             println!("{}", password);
-            let estimate = zxcvbn::zxcvbn(&password, &[]).unwrap();
+            let estimate = zxcvbn::zxcvbn(&password, &[])?;
             eprintln!("Estimated strength: {}", estimate.score());
         }
         SubCommand::Base64(subcommand) => match subcommand {
             Base64Subcommand::Encode(opts) => {
-                let mut reader = get_reader(&opts.input).unwrap();
-                let encoded =
-                    process_base64(&mut reader, &opts.format, Base64Action::Encode).unwrap();
+                let mut reader = get_reader(&opts.input)?;
+                let encoded = process_base64(&mut reader, &opts.format, Base64Action::Encode)?;
                 println!("{}", encoded);
             }
             Base64Subcommand::Decode(opts) => {
-                let mut reader = get_reader(&opts.input).unwrap();
-                let decoded =
-                    process_base64(&mut reader, &opts.format, Base64Action::Decode).unwrap();
+                let mut reader = get_reader(&opts.input)?;
+                let decoded = process_base64(&mut reader, &opts.format, Base64Action::Decode)?;
                 println!("{}", decoded);
             }
         },
         SubCommand::Text(subcommand) => match subcommand {
             TextSubcommand::Sign(opts) => {
-                let mut reader = get_reader(&opts.input).unwrap();
-                let key = get_content(&opts.key).unwrap();
-                let signed = process_sign(&mut reader, &key, opts.format).unwrap();
+                let mut reader = get_reader(&opts.input)?;
+                let key = get_content(&opts.key)?;
+                let signed = process_sign(&mut reader, &key, opts.format)?;
                 println!("{}", signed);
             }
             TextSubcommand::Verify(opts) => {
-                let mut reader = get_reader(&opts.input).unwrap();
-                let key = get_content(&opts.key).unwrap();
-                let sig = get_content(&opts.sig).unwrap();
-                let verified = process_verify(&mut reader, &key, &sig, opts.format).unwrap();
+                let mut reader = get_reader(&opts.input)?;
+                let key = get_content(&opts.key)?;
+                let sig = get_content(&opts.sig)?;
+                let verified = process_verify(&mut reader, &key, &sig, opts.format)?;
                 println!("{}", verified);
             }
             TextSubcommand::Generate(opts) => {
@@ -64,21 +60,33 @@ async fn main() -> Result<()> {
                 output_contents(&opts.output, &key);
             }
             TextSubcommand::Encrypt(opts) => {
-                let mut reader = get_reader(&opts.input).unwrap();
-                let key = get_content(&opts.key).unwrap();
-                let encrypted = process_encrypt(&mut reader, &key).unwrap();
+                let mut reader = get_reader(&opts.input)?;
+                let key = get_content(&opts.key)?;
+                let encrypted = process_encrypt(&mut reader, &key)?;
                 output_contents(&opts.output, &encrypted);
             }
             TextSubcommand::Decrypt(opts) => {
-                let mut reader = get_reader(&opts.input).unwrap();
-                let key = get_content(&opts.key).unwrap();
-                let decrypted = process_decrypt(&mut reader, &key).unwrap();
+                let mut reader = get_reader(&opts.input)?;
+                let key = get_content(&opts.key)?;
+                let decrypted = process_decrypt(&mut reader, &key)?;
                 output_contents(&opts.output, &decrypted);
             }
         },
         SubCommand::Http(subcommand) => match subcommand {
             HttpSubcommand::Server(opts) => {
                 process_server(opts.dir, opts.port).await?;
+            }
+        },
+        SubCommand::JWT(subcommand) => match subcommand {
+            JwtSubcommand::Sign(opts) => {
+                match process_jwt_sign(&opts.key, &opts.aud, &opts.exp, &opts.iss, &opts.sub) {
+                    Ok(token) => println!("Sign JWT: \n{}", token),
+                    Err(e) => eprintln!("Error: {}", e),
+                }
+            }
+            JwtSubcommand::Verify(opts) => {
+                let verified = process_jwt_verify(&opts.key, &opts.token, &opts.aud);
+                println!("Verify JWT: {}", verified.is_ok());
             }
         },
     }
