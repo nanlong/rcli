@@ -61,6 +61,18 @@ fn main() {
                 let key = process_generate(opts.format);
                 output_contents(&opts.output, &key);
             }
+            TextSubcommand::Encrypt(opts) => {
+                let mut reader = get_reader(&opts.input).unwrap();
+                let key = get_content(&opts.key).unwrap();
+                let encrypted = process_encrypt(&mut reader, &key).unwrap();
+                output_contents(&opts.output, &encrypted);
+            }
+            TextSubcommand::Decrypt(opts) => {
+                let mut reader = get_reader(&opts.input).unwrap();
+                let key = get_content(&opts.key).unwrap();
+                let decrypted = process_decrypt(&mut reader, &key).unwrap();
+                output_contents(&opts.output, &decrypted);
+            }
         },
     }
 }

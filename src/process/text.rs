@@ -2,6 +2,10 @@ use std::io::Read;
 
 use crate::{decode_hex, encode_hex, TextSignFormat};
 use anyhow::Result;
+use chacha20poly1305::{
+    aead::{Aead, AeadCore, KeyInit},
+    ChaCha20Poly1305, Nonce,
+};
 use ed25519_dalek::{Signature, Signer, SigningKey, Verifier};
 use rand::rngs::OsRng;
 
@@ -107,6 +111,40 @@ pub fn process_sign(input: &mut dyn Read, key: &str, format: TextSignFormat) -> 
     }
 }
 
+pub fn process_encrypt(input: &mut dyn Read, key: &str) -> Result<String> {
+    let mut buf = String::new();
+    input.read_to_string(&mut buf)?;
+    let buf = buf.trim();
+
+    let cipher = ChaCha20Poly1305::new_from_slice(decode_hex(key)?.as_slice())?;
+    let nonce = ChaCha20Poly1305::generate_nonce(&mut OsRng);
+
+    let ciphertext = cipher
+        .encrypt(&nonce, buf.as_bytes())
+        .map_err(|_| anyhow::anyhow!("encrypt error"))?;
+
+    let mut output = Vec::new();
+    output.extend_from_slice(nonce.as_slice());
+    output.extend_from_slice(ciphertext.as_slice());
+
+    Ok(encode_hex(output.as_slice()))
+}
+
+pub fn process_decrypt(input: &mut dyn Read, key: &str) -> Result<String> {
+    let mut buf = String::new();
+    input.read_to_string(&mut buf)?;
+    let buf = decode_hex(buf.trim())?;
+
+    let cipher = ChaCha20Poly1305::new_from_slice(decode_hex(key)?.as_slice())?;
+    let nonce = Nonce::from_slice(&buf[0..12]);
+
+    let plaintext = cipher
+        .decrypt(nonce, &buf[12..])
+        .map_err(|_| anyhow::anyhow!("decrypt error"))?;
+
+    Ok(String::from_utf8(plaintext)?)
+}
+
 pub fn process_verify(
     input: &mut dyn Read,
     key: &str,
@@ -182,5 +220,22 @@ mod tests {
         let msg = "hello world";
         let signature = edd25519.sign(msg);
         assert!(edd25519.verify(msg, &signature).unwrap());
+    }
+
+    #[test]
+    fn test_encrypt() {
+        let input = &mut "你好，世界！".as_bytes();
+        let key = "d15b212054ab60da12d67534d79d06f432bc1d7be2b5902297189639078c4a38";
+        let encrypted = process_encrypt(input, key).unwrap();
+        let descrypted = process_decrypt(&mut encrypted.as_bytes(), key).unwrap();
+        assert_eq!(descrypted, "你好，世界！");
+    }
+
+    #[test]
+    fn test_decrypt() {
+        let input = &mut "2a49e9b2deb0f9c8cd440699f6e22757249a5f924656fbc8f420ed7978df53d89d51964ae6a76a1d647beff3be46".as_bytes();
+        let key = "d15b212054ab60da12d67534d79d06f432bc1d7be2b5902297189639078c4a38";
+        let resp = process_decrypt(input, key).unwrap();
+        assert_eq!(resp, "你好，世界！");
     }
 }

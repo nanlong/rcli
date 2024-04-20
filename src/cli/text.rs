@@ -9,6 +9,10 @@ pub enum TextSubcommand {
     Verify(VerifyOpts),
     #[command(name = "generate", about = "Generate a key")]
     Generate(GenerateOpts),
+    #[command(name = "encrypt", about = "Encrypt a message")]
+    Encrypt(EncryptOpts),
+    #[command(name = "decrypt", about = "Decrypt a message")]
+    Decrypt(DecryptOpts),
 }
 
 #[derive(Debug, Parser)]
@@ -39,6 +43,26 @@ pub struct GenerateOpts {
     pub output: String,
     #[arg(short, long, default_value = "blake3")]
     pub format: TextSignFormat,
+}
+
+#[derive(Debug, Parser)]
+pub struct EncryptOpts {
+    #[arg(short, long, value_parser = verify_input, default_value = "-")]
+    pub input: String,
+    #[arg(short, long, help = "key to encrypt with")]
+    pub key: String,
+    #[arg(short, long, help = "output file", default_value = "-")]
+    pub output: String,
+}
+
+#[derive(Debug, Parser)]
+pub struct DecryptOpts {
+    #[arg(short, long, value_parser = verify_input, default_value = "-")]
+    pub input: String,
+    #[arg(short, long, help = "key to decrypt with")]
+    pub key: String,
+    #[arg(short, long, help = "output file", default_value = "-")]
+    pub output: String,
 }
 
 #[derive(Debug, Clone, Copy)]
