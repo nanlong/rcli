@@ -1,9 +1,13 @@
-use std::{net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{
+    net::{Ipv4Addr, SocketAddr},
+    path::PathBuf,
+    sync::Arc,
+};
 
 use anyhow::Result;
 use axum::{
     extract::{Path, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     routing::get,
     Router,
 };
@@ -19,7 +23,7 @@ pub struct AppState {
 pub async fn process_server(dir: impl AsRef<std::path::Path>, port: u16) -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
     info!("Listening on {}", addr);
 
     let state = Arc::new(AppState {
@@ -45,16 +49,64 @@ pub async fn process_server(dir: impl AsRef<std::path::Path>, port: u16) -> Resu
 
 async fn file_handler(
     State(state): State<Arc<AppState>>,
-    Path(path): Path<String>,
-) -> (StatusCode, String) {
-    let path = std::path::Path::new(&state.dir).join(path.trim_start_matches('/'));
+    Path(path_arg): Path<String>,
+) -> (StatusCode, HeaderMap, String) {
+    let path = std::path::Path::new(&state.dir).join(path_arg.trim_start_matches('/'));
+    let mut headers = HeaderMap::new();
 
-    if !path.exists() {
-        (StatusCode::NOT_FOUND, "Not Found".into())
+    if path.is_dir() {
+        match path.read_dir() {
+            Ok(entries) => {
+                let entries = entries
+                    .filter_map(|entry| {
+                        entry.ok().map(|entry| {
+                            let path = entry.path();
+                            let name = path.file_name().unwrap().to_string_lossy().to_string();
+                            let is_dir = path.is_dir();
+                            (name, is_dir)
+                        })
+                    })
+                    .collect::<Vec<_>>();
+
+                let html = entries
+                    .iter()
+                    .map(|(name, is_dir)| {
+                        let src = std::path::Path::new(&path_arg).join(name);
+                        let link = format!("<a href=\"/{}\">{}</a>", src.to_string_lossy(), name);
+                        format!("<li>{} {}</li>", if *is_dir { "(dir)" } else { "" }, link)
+                    })
+                    .collect::<Vec<_>>()
+                    .join("");
+
+                let html = format!(
+                    r#"
+                    <!DOCTYPE html>
+                    <html>
+                        <head>
+                            <title>Index of {path}</title>
+                        </head>
+                        <body>
+                            <h1>Index of {path}</h1>
+                            <ul>
+                                {html}
+                            </ul>
+                        </body>
+                    </html>
+                    "#,
+                    path = path.display(),
+                    html = html
+                );
+                headers.insert("Content-Type", "text/html".parse().unwrap());
+                (StatusCode::OK, headers, html)
+            }
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, headers, e.to_string()),
+        }
+    } else if !path.exists() {
+        (StatusCode::NOT_FOUND, headers, "Not Found".into())
     } else {
         match fs::read_to_string(path).await {
-            Ok(content) => (StatusCode::OK, content),
-            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            Ok(content) => (StatusCode::OK, headers, content),
+            Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, headers, e.to_string()),
         }
     }
 }
@@ -70,12 +122,12 @@ mod tests {
             dir: PathBuf::from("."),
         });
 
-        let (status, content) =
+        let (status, _, content) =
             file_handler(State(state.clone()), Path("Cargo.toml".to_string())).await;
         assert_eq!(status, StatusCode::OK);
         assert!(content.starts_with("[package]"));
 
-        let (status, content) =
+        let (status, _, content) =
             file_handler(State(state.clone()), Path("not_found.txt".to_string())).await;
         assert_eq!(status, StatusCode::NOT_FOUND);
         assert_eq!(content, "Not Found");

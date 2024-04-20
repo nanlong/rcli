@@ -11,3 +11,8 @@
 ### 解密信息
 
 `cargo run -- text decrypt -k output/key.txt -i output/juventus.csv.enc -o output/juventus.csv.dec`
+
+## 作业 2
+
+1. `cargo run -- http server`
+2. open link `http://localhost:8080/assets`
