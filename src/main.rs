@@ -1,7 +1,9 @@
+use anyhow::Result;
 use clap::Parser;
 use rcli::*;
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     let opts = Opts::parse();
 
     match opts.cmd {
@@ -74,5 +76,12 @@ fn main() {
                 output_contents(&opts.output, &decrypted);
             }
         },
+        SubCommand::Http(subcommand) => match subcommand {
+            HttpSubcommand::Server(opts) => {
+                process_server(opts.dir, opts.port).await?;
+            }
+        },
     }
+
+    Ok(())
 }

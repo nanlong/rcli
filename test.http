@@ -1,0 +1,16 @@
+### test static server with 200
+
+GET http://localhost:8080/assets/juventus.csv
+
+
+### test static server with 404
+
+GET http://localhost:8080/assets/juventus1.csv
+
+### test static server with 500
+
+GET http://localhost:8080/assets/juventus2.csv
+
+
+### test tower http
+GET http://localhost:8080/tower/assets/juventus.csv
