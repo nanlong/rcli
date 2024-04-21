@@ -6,12 +6,15 @@ mod jwt;
 mod text;
 
 pub use base64::*;
-use clap::Parser;
 pub use csv::*;
 pub use genpass::*;
 pub use http::*;
 pub use jwt::*;
 pub use text::*;
+
+use anyhow::Result;
+use clap::Parser;
+use enum_dispatch::enum_dispatch;
 
 #[derive(Debug, Parser)]
 pub struct Opts {
@@ -20,6 +23,7 @@ pub struct Opts {
 }
 
 #[derive(Debug, Parser)]
+#[enum_dispatch(CmdExector)]
 pub enum SubCommand {
     #[command(name = "csv", about = "Show CSV, or convert CSV to other formats")]
     Csv(CsvOpts),
@@ -33,4 +37,10 @@ pub enum SubCommand {
     Http(HttpSubcommand),
     #[command(subcommand, about = "JWT sign/verify")]
     JWT(JwtSubcommand),
+}
+
+#[allow(async_fn_in_trait)]
+#[enum_dispatch]
+pub trait CmdExector {
+    async fn execute(self) -> Result<()>;
 }

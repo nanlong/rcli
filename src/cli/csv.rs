@@ -1,4 +1,4 @@
-use crate::utils::verify_input;
+use crate::{verify_input, CmdExector};
 use clap::Parser;
 
 #[derive(Debug, Parser, Clone)]
@@ -34,5 +34,18 @@ impl std::str::FromStr for OutputFormat {
             "toml" => Ok(OutputFormat::Toml),
             _ => Err(anyhow::anyhow!("Invalid CSV output format")),
         }
+    }
+}
+
+impl CmdExector for CsvOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        crate::process_csv(
+            &self.input,
+            &self.output,
+            self.format,
+            self.delimiter,
+            self.no_header,
+        )?;
+        Ok(())
     }
 }

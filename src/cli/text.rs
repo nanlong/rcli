@@ -1,7 +1,10 @@
-use crate::verify_input;
+use crate::{verify_input, CmdExector};
+
 use clap::Parser;
+use enum_dispatch::enum_dispatch;
 
 #[derive(Debug, Parser)]
+#[enum_dispatch(CmdExector)]
 pub enum TextSubcommand {
     #[command(name = "sign", about = "Sign a message")]
     Sign(SignOpts),
@@ -80,5 +83,54 @@ impl std::str::FromStr for TextSignFormat {
             "ed25519" => Ok(TextSignFormat::Ed25519),
             _ => Err(anyhow::anyhow!("Invalid text sign format")),
         }
+    }
+}
+
+impl CmdExector for SignOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let mut reader = crate::get_reader(&self.input)?;
+        let key = crate::get_content(&self.key)?;
+        let signature = crate::process_sign(&mut reader, &key, self.format)?;
+        println!("{}", signature);
+        Ok(())
+    }
+}
+
+impl CmdExector for VerifyOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let mut reader = crate::get_reader(&self.input)?;
+        let key = crate::get_content(&self.key)?;
+        let sig = crate::get_content(&self.sig)?;
+        let verified = crate::process_verify(&mut reader, &key, &sig, self.format)?;
+        println!("{}", verified);
+        Ok(())
+    }
+}
+
+impl CmdExector for GenerateOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let key = crate::process_generate(self.format);
+        crate::output_contents(&self.output, &key);
+        Ok(())
+    }
+}
+
+impl CmdExector for EncryptOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let mut reader = crate::get_reader(&self.input)?;
+        let key = crate::get_content(&self.key)?;
+        let encrypted = crate::process_encrypt(&mut reader, &key)?;
+        crate::output_contents(&self.output, &encrypted);
+        Ok(())
+    }
+}
+
+impl CmdExector for DecryptOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let mut reader = crate::get_reader(&self.input)?;
+        let key = crate::get_content(&self.key)?;
+        let decrypted = crate::process_decrypt(&mut reader, &key)?;
+        crate::output_contents(&self.output, &decrypted);
+        Ok(())
     }
 }

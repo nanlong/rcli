@@ -21,8 +21,6 @@ pub struct AppState {
 }
 
 pub async fn process_server(dir: impl AsRef<std::path::Path>, port: u16) -> Result<()> {
-    tracing_subscriber::fmt::init();
-
     let addr = SocketAddr::from((Ipv4Addr::UNSPECIFIED, port));
     info!("Listening on {}", addr);
 

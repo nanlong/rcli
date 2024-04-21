@@ -1,7 +1,10 @@
-use crate::utils::verify_input;
+use crate::{verify_input, CmdExector};
+
 use clap::Parser;
+use enum_dispatch::enum_dispatch;
 
 #[derive(Debug, Parser)]
+#[enum_dispatch(CmdExector)]
 pub enum Base64Subcommand {
     #[command(name = "encode", about = "Encode a string to base64")]
     Encode(EncodeOpts),
@@ -50,5 +53,25 @@ impl std::str::FromStr for Base64Format {
             "urlsafe" => Ok(Base64Format::UrlSafe),
             _ => Err(anyhow::anyhow!("Invalid base64 format")),
         }
+    }
+}
+
+impl CmdExector for EncodeOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let mut reader = crate::get_reader(&self.input)?;
+        let encoded =
+            crate::process_base64(&mut reader, &self.format, crate::Base64Action::Encode)?;
+        println!("{}", encoded);
+        Ok(())
+    }
+}
+
+impl CmdExector for DecodeOpts {
+    async fn execute(self) -> anyhow::Result<()> {
+        let mut reader = crate::get_reader(&self.input)?;
+        let decoded =
+            crate::process_base64(&mut reader, &self.format, crate::Base64Action::Decode)?;
+        println!("{}", decoded);
+        Ok(())
     }
 }
