@@ -21,7 +21,7 @@ cargo run -- text decrypt -k output/key.txt -i output/juventus.csv.enc -o output
 ## 作业 2 显示目录文件
 
 1. `cargo run -- http server`
-2. open link `http://localhost:8080/assets`
+2. open link `http://localhost:8080`
 
 ## 作业 3 jwt
 

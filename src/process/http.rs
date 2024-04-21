@@ -36,6 +36,7 @@ pub async fn process_server(dir: impl AsRef<std::path::Path>, port: u16) -> Resu
         .precompressed_zstd();
 
     let app = Router::new()
+        .route("/", get(file_index))
         .route("/*path", get(file_handler))
         .nest_service("/tower", serve_dir)
         .with_state(state);
@@ -43,6 +44,10 @@ pub async fn process_server(dir: impl AsRef<std::path::Path>, port: u16) -> Resu
     let listener = TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
     Ok(())
+}
+
+async fn file_index(State(state): State<Arc<AppState>>) -> (StatusCode, HeaderMap, String) {
+    file_handler(State(state.clone()), Path("/".to_string())).await
 }
 
 async fn file_handler(
@@ -70,8 +75,15 @@ async fn file_handler(
                     .iter()
                     .map(|(name, is_dir)| {
                         let src = std::path::Path::new(&path_arg).join(name);
-                        let link = format!("<a href=\"/{}\">{}</a>", src.to_string_lossy(), name);
-                        format!("<li>{} {}</li>", if *is_dir { "(dir)" } else { "" }, link)
+
+                        let src = if src.starts_with("/") {
+                            src.to_string_lossy().to_string()
+                        } else {
+                            format!("/{}", src.to_string_lossy())
+                        };
+
+                        let link = format!("<a href=\"{}\">{}</a>", src, name);
+                        format!("<li>{}{}</li>", if *is_dir { "(dir) - " } else { "" }, link)
                     })
                     .collect::<Vec<_>>()
                     .join("");
