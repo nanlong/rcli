@@ -4,32 +4,18 @@ use std::{
 };
 
 use anyhow::Result;
+use derive_builder::Builder;
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Builder, Serialize, Deserialize)]
 struct Claims {
-    aud: String, // Optional. Audience
+    aud: Option<String>, // Optional. Audience
     exp: usize, // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
-    iat: usize, // Optional. Issued at (as UTC timestamp)
-    iss: String, // Optional. Issuer
-    nbf: usize, // Optional. Not Before (as UTC timestamp)
-    sub: String, // Optional. Subject (whom token refers to)
-}
-
-impl Claims {
-    pub fn try_new(aud: &str, exp: &str, iss: &str, sub: &str) -> Result<Self> {
-        let now = now();
-
-        Ok(Self {
-            aud: aud.to_string(),
-            exp: exp.parse::<TimeDelta>()?.as_timestamp(),
-            iat: now,
-            iss: iss.to_string(),
-            nbf: now,
-            sub: sub.to_string(),
-        })
-    }
+    iat: Option<usize>, // Optional. Issued at (as UTC timestamp)
+    iss: Option<String>, // Optional. Issuer
+    nbf: Option<usize>, // Optional. Not Before (as UTC timestamp)
+    sub: Option<String>, // Optional. Subject (whom token refers to)
 }
 
 fn now() -> usize {
@@ -76,19 +62,37 @@ impl FromStr for TimeDelta {
     }
 }
 
-pub fn process_jwt_sign(key: &str, aud: &str, exp: &str, iss: &str, sub: &str) -> Result<String> {
+pub fn process_jwt_sign(
+    key: &str,
+    exp: &str,
+    aud: Option<String>,
+    iss: Option<String>,
+    sub: Option<String>,
+) -> Result<String> {
     let key = EncodingKey::from_secret(key.as_ref());
-    let claims = Claims::try_new(aud, exp, iss, sub)?;
+
+    let claims = ClaimsBuilder::default()
+        .aud(aud)
+        .exp(exp.parse::<TimeDelta>()?.as_timestamp())
+        .iss(iss)
+        .sub(sub)
+        .iat(Some(now()))
+        .nbf(Some(now()))
+        .build()?;
+
     let token = encode(&Header::default(), &claims, &key)?;
 
     Ok(token)
 }
 
-pub fn process_jwt_verify(key: &str, token: &str, aud: &str) -> Result<()> {
+pub fn process_jwt_verify(key: &str, token: &str, aud: Option<String>) -> Result<()> {
     let key = DecodingKey::from_secret(key.as_ref());
     let mut validation = Validation::default();
 
-    validation.set_audience(&[aud]);
+    if let Some(aud) = aud {
+        validation.set_audience(&[aud]);
+    }
+
     decode::<Claims>(token, &key, &validation)?;
 
     Ok(())
@@ -116,12 +120,12 @@ mod tests {
     #[test]
     fn test_process_sign() {
         let key = "secret";
-        let aud = "aud";
         let exp = "1h";
-        let iss = "iss";
-        let sub = "sub";
+        let aud = Some("aud".to_string());
+        let iss = Some("iss".to_string());
+        let sub = Some("sub".to_string());
 
-        let token = process_jwt_sign(key, aud, exp, iss, sub).unwrap();
+        let token = process_jwt_sign(key, exp, aud.clone(), iss, sub).unwrap();
         let verified = process_jwt_verify(key, &token, aud);
         assert!(verified.is_ok());
     }
